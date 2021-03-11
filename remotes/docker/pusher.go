@@ -73,10 +73,6 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		l.Lock(ref)
 		defer l.Unlock(ref)
 	}
-	ctx, err := ContextWithRepositoryScope(ctx, p.refspec, true)
-	if err != nil {
-		return nil, err
-	}
 	status, err := p.tracker.GetStatus(ref)
 	if err == nil {
 		if status.Committed && status.Offset == status.Total {
@@ -104,6 +100,12 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		host       = hosts[0]
 	)
 
+	base := p.withRewritesFromHost(host)
+	ctx, err = ContextWithRepositoryScope(ctx, base.refspec, true)
+	if err != nil {
+		return nil, err
+	}
+
 	switch desc.MediaType {
 	case images.MediaTypeDockerSchema2Manifest, images.MediaTypeDockerSchema2ManifestList,
 		ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex:
@@ -113,7 +115,7 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		existCheck = []string{"blobs", desc.Digest.String()}
 	}
 
-	req := p.request(host, http.MethodHead, existCheck...)
+	req := base.request(host, http.MethodHead, existCheck...)
 	req.header.Set("Accept", strings.Join([]string{desc.MediaType, `*/*`}, ", "))
 
 	log.G(ctx).WithField("url", req.String()).Debugf("checking and pushing to")
@@ -163,11 +165,11 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 
 	if isManifest {
 		putPath := getManifestPath(p.object, desc.Digest)
-		req = p.request(host, http.MethodPut, putPath...)
+		req = base.request(host, http.MethodPut, putPath...)
 		req.header.Add("Content-Type", desc.MediaType)
 	} else {
 		// Start upload request
-		req = p.request(host, http.MethodPost, "blobs", "uploads/")
+		req = base.request(host, http.MethodPost, "blobs", "uploads/")
 
 		mountedFrom := ""
 		var resp *http.Response
