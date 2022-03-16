@@ -9,7 +9,7 @@ require (
 	github.com/containerd/cgroups/v3 v3.0.2
 	github.com/containerd/containerd v1.7.17 // see replace; the actual version of containerd is replaced with the code at the root of this repository
 	github.com/containerd/containerd/api v1.7.19
-	github.com/containerd/continuity v0.4.2
+	github.com/containerd/continuity v0.4.3
 	github.com/containerd/go-runc v1.0.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v0.2.1
@@ -46,7 +46,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/klauspost/compress v1.16.7 // indirect
+	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
