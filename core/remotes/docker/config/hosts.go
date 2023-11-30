@@ -54,6 +54,7 @@ type hostConfig struct {
 
 	header http.Header
 
+	rewrites map[string]string
 	// TODO: Add credential configuration (domain alias, username)
 }
 
@@ -263,6 +264,7 @@ func ConfigureHosts(ctx context.Context, options HostOptions) docker.RegistryHos
 			rhosts[i].Path = host.path
 			rhosts[i].Capabilities = host.capabilities
 			rhosts[i].Header = host.header
+			rhosts[i].Rewrites = host.rewrites
 		}
 
 		return rhosts, nil
@@ -352,6 +354,10 @@ type hostFileConfig struct {
 	// API root endpoint.
 	OverridePath bool `toml:"override_path"`
 
+	// Rewrites contains a map of regex/replacement values, used to modify
+	// the image name when pulling.
+	Rewrites map[string]string `toml:"rewrite"`
+
 	// TODO: Credentials: helper? name? username? alternate domain? token?
 }
 
@@ -389,13 +395,17 @@ func parseHostsFile(baseDir string, b []byte) ([]hostConfig, error) {
 		hosts = append(hosts, parsed)
 	}
 
-	// Parse root host config and append it as the last element
-	parsed, err := parseHostConfig(c.Server, baseDir, c.hostFileConfig)
-	if err != nil {
-		return nil, err
+	// If the server key is set at the root of the tree, or no other hosts are configured,
+	// parse the root host config and append it as the last element.
+	// This allows not using upstream by including hosts and excluding the server key as documented at
+	// https://github.com/containerd/containerd/blob/release/1.7/docs/hosts.md#setup-a-local-mirror-for-docker
+	if c.Server != "" || len(hosts) == 0 {
+		parsed, err := parseHostConfig(c.Server, baseDir, c.hostFileConfig)
+		if err != nil {
+			return nil, err
+		}
+		hosts = append(hosts, parsed)
 	}
-	hosts = append(hosts, parsed)
-
 	return hosts, nil
 }
 
@@ -427,6 +437,7 @@ func parseHostConfig(server string, baseDir string, config hostFileConfig) (host
 	}
 
 	result.skipVerify = config.SkipVerify
+	result.rewrites = config.Rewrites
 
 	if len(config.Capabilities) > 0 {
 		for _, c := range config.Capabilities {
