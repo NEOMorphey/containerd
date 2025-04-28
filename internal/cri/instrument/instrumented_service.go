@@ -22,6 +22,8 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/containerd/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
@@ -641,4 +643,8 @@ func (in *instrumentedService) RuntimeConfig(ctx context.Context, r *runtime.Run
 	}()
 	res, err = in.c.RuntimeConfig(ctx, r)
 	return res, errgrpc.ToGRPC(err)
+}
+
+func (in *instrumentedService) UpdatePodSandboxResources(ctx context.Context, r *runtime.UpdatePodSandboxResourcesRequest) (res *runtime.UpdatePodSandboxResourcesResponse, err error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RuntimeConfig not implemented")
 }
