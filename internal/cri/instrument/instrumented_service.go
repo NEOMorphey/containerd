@@ -646,5 +646,5 @@ func (in *instrumentedService) RuntimeConfig(ctx context.Context, r *runtime.Run
 }
 
 func (in *instrumentedService) UpdatePodSandboxResources(ctx context.Context, r *runtime.UpdatePodSandboxResourcesRequest) (res *runtime.UpdatePodSandboxResourcesResponse, err error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RuntimeConfig not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePodSandboxResources not implemented")
 }
