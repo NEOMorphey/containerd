@@ -13,7 +13,3 @@ type dirent struct {
 	Type   uint8
 	Name   [1]uint8 // align to 4 bytes for 32 bits.
 }
-
-func (de *dirent) nameLength() int {
-	return int(de.Namlen)
-}

@@ -16,15 +16,17 @@ func isValidCredsMessage(msg string) error {
 	if credentials.IsCredentialsMissingServerURLMessage(msg) {
 		return credentials.NewErrCredentialsMissingServerURL()
 	}
+
 	if credentials.IsCredentialsMissingUsernameMessage(msg) {
 		return credentials.NewErrCredentialsMissingUsername()
 	}
+
 	return nil
 }
 
 // Store uses an external program to save credentials.
 func Store(program ProgramFunc, creds *credentials.Credentials) error {
-	cmd := program(credentials.ActionStore)
+	cmd := program("store")
 
 	buffer := new(bytes.Buffer)
 	if err := json.NewEncoder(buffer).Encode(creds); err != nil {
@@ -34,10 +36,13 @@ func Store(program ProgramFunc, creds *credentials.Credentials) error {
 
 	out, err := cmd.Output()
 	if err != nil {
-		if isValidErr := isValidCredsMessage(string(out)); isValidErr != nil {
+		t := strings.TrimSpace(string(out))
+
+		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
 			err = isValidErr
 		}
-		return fmt.Errorf("error storing credentials - err: %v, out: `%s`", err, strings.TrimSpace(string(out)))
+
+		return fmt.Errorf("error storing credentials - err: %v, out: `%s`", err, t)
 	}
 
 	return nil
@@ -45,20 +50,22 @@ func Store(program ProgramFunc, creds *credentials.Credentials) error {
 
 // Get executes an external program to get the credentials from a native store.
 func Get(program ProgramFunc, serverURL string) (*credentials.Credentials, error) {
-	cmd := program(credentials.ActionGet)
+	cmd := program("get")
 	cmd.Input(strings.NewReader(serverURL))
 
 	out, err := cmd.Output()
 	if err != nil {
-		if credentials.IsErrCredentialsNotFoundMessage(string(out)) {
+		t := strings.TrimSpace(string(out))
+
+		if credentials.IsErrCredentialsNotFoundMessage(t) {
 			return nil, credentials.NewErrCredentialsNotFound()
 		}
 
-		if isValidErr := isValidCredsMessage(string(out)); isValidErr != nil {
+		if isValidErr := isValidCredsMessage(t); isValidErr != nil {
 			err = isValidErr
 		}
 
-		return nil, fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, strings.TrimSpace(string(out)))
+		return nil, fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, t)
 	}
 
 	resp := &credentials.Credentials{
@@ -74,7 +81,7 @@ func Get(program ProgramFunc, serverURL string) (*credentials.Credentials, error
 
 // Erase executes a program to remove the server credentials from the native store.
 func Erase(program ProgramFunc, serverURL string) error {
-	cmd := program(credentials.ActionErase)
+	cmd := program("erase")
 	cmd.Input(strings.NewReader(serverURL))
 	out, err := cmd.Output()
 	if err != nil {
@@ -92,7 +99,7 @@ func Erase(program ProgramFunc, serverURL string) error {
 
 // List executes a program to list server credentials in the native store.
 func List(program ProgramFunc) (map[string]string, error) {
-	cmd := program(credentials.ActionList)
+	cmd := program("list")
 	cmd.Input(strings.NewReader("unused"))
 	out, err := cmd.Output()
 	if err != nil {

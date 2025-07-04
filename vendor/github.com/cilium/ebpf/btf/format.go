@@ -56,7 +56,7 @@ func (gf *GoFormatter) enumIdentifier(name, element string) string {
 //
 // It encodes https://golang.org/ref/spec#Type_declarations:
 //
-//	type foo struct { _ structs.HostLayout; bar uint32; }
+//	type foo struct { bar uint32; }
 //	type bar int32
 func (gf *GoFormatter) writeTypeDecl(name string, typ Type) error {
 	if name == "" {
@@ -114,7 +114,7 @@ func (gf *GoFormatter) writeType(typ Type, depth int) error {
 //
 // It encodes https://golang.org/ref/spec#TypeLit.
 //
-//	struct { _ structs.HostLayout; bar uint32; }
+//	struct { bar uint32; }
 //	uint32
 func (gf *GoFormatter) writeTypeLit(typ Type, depth int) error {
 	depth++
@@ -161,9 +161,6 @@ func (gf *GoFormatter) writeTypeLit(typ Type, depth int) error {
 	case *Datasec:
 		err = gf.writeDatasecLit(v, depth)
 
-	case *Var:
-		err = gf.writeTypeLit(v.Type, depth)
-
 	default:
 		return fmt.Errorf("type %T: %w", v, ErrNotSupported)
 	}
@@ -208,7 +205,7 @@ func (gf *GoFormatter) writeIntLit(i *Int) error {
 }
 
 func (gf *GoFormatter) writeStructLit(size uint32, members []Member, depth int) error {
-	gf.w.WriteString("struct { _ structs.HostLayout; ")
+	gf.w.WriteString("struct { ")
 
 	prevOffset := uint32(0)
 	skippedBitfield := false
@@ -298,7 +295,7 @@ func (gf *GoFormatter) writeStructField(m Member, depth int) error {
 }
 
 func (gf *GoFormatter) writeDatasecLit(ds *Datasec, depth int) error {
-	gf.w.WriteString("struct { _ structs.HostLayout; ")
+	gf.w.WriteString("struct { ")
 
 	prevOffset := uint32(0)
 	for i, vsi := range ds.Vars {

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Server) setSplice() {
-	s.canSplice = splice.Resizable() && !s.opts.DisableSplice
+	s.canSplice = splice.Resizable()
 }
 
 // trySplice:  Zero-copy read from fdData.Fd into /dev/fuse

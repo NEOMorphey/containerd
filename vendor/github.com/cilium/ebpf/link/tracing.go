@@ -1,5 +1,3 @@
-//go:build !windows
-
 package link
 
 import (
@@ -16,7 +14,7 @@ type tracing struct {
 	RawLink
 }
 
-func (f *tracing) Update(_ *ebpf.Program) error {
+func (f *tracing) Update(new *ebpf.Program) error {
 	return fmt.Errorf("tracing update: %w", ErrNotSupported)
 }
 

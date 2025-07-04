@@ -1,29 +1,13 @@
-version: "2"
+---
 linters:
-  default: none
+  disable-all: true
   enable:
-    - depguard
+    - goimports
+    - gosimple
     - govet
     - ineffassign
     - misspell
+    - staticcheck
+    - typecheck
     - unused
-  settings:
-    depguard:
-      rules:
-        no-x-sys-unix:
-          files:
-            - '!**/internal/unix/*.go'
-            - '!**/examples/**/*.go'
-            - '!**/docs/**/*.go'
-          deny:
-            - pkg: golang.org/x/sys/unix
-              desc: use internal/unix instead
-
-formatters:
-  enable:
     - gofmt
-    - goimports
-  settings:
-    goimports:
-      local-prefixes:
-        - github.com/cilium/ebpf

@@ -1,5 +1,3 @@
-//go:build !windows
-
 package link
 
 import (
@@ -65,7 +63,7 @@ func AttachNetfilter(opts NetfilterOptions) (Link, error) {
 	return &netfilterLink{RawLink{fd, ""}}, nil
 }
 
-func (*netfilterLink) Update(_ *ebpf.Program) error {
+func (*netfilterLink) Update(new *ebpf.Program) error {
 	return fmt.Errorf("netfilter update: %w", ErrNotSupported)
 }
 

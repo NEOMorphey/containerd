@@ -54,30 +54,25 @@ func (filter *U32) Type() string {
 
 type Flower struct {
 	FilterAttrs
-	ClassId         uint32
-	DestIP          net.IP
-	DestIPMask      net.IPMask
-	SrcIP           net.IP
-	SrcIPMask       net.IPMask
-	EthType         uint16
-	EncDestIP       net.IP
-	EncDestIPMask   net.IPMask
-	EncSrcIP        net.IP
-	EncSrcIPMask    net.IPMask
-	EncDestPort     uint16
-	EncKeyId        uint32
-	SrcMac          net.HardwareAddr
-	DestMac         net.HardwareAddr
-	VlanId          uint16
-	SkipHw          bool
-	SkipSw          bool
-	IPProto         *nl.IPProto
-	DestPort        uint16
-	SrcPort         uint16
-	SrcPortRangeMin uint16
-	SrcPortRangeMax uint16
-	DstPortRangeMin uint16
-	DstPortRangeMax uint16
+	DestIP        net.IP
+	DestIPMask    net.IPMask
+	SrcIP         net.IP
+	SrcIPMask     net.IPMask
+	EthType       uint16
+	EncDestIP     net.IP
+	EncDestIPMask net.IPMask
+	EncSrcIP      net.IP
+	EncSrcIPMask  net.IPMask
+	EncDestPort   uint16
+	EncKeyId      uint32
+	SrcMac        net.HardwareAddr
+	DestMac       net.HardwareAddr
+	VlanId        uint16
+	SkipHw        bool
+	SkipSw        bool
+	IPProto       *nl.IPProto
+	DestPort      uint16
+	SrcPort       uint16
 
 	Actions []Action
 }
@@ -176,19 +171,6 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 			}
 		}
 	}
-	if filter.SrcPortRangeMin != 0 && filter.SrcPortRangeMax != 0 {
-		parent.AddRtAttr(nl.TCA_FLOWER_KEY_PORT_SRC_MIN, htons(filter.SrcPortRangeMin))
-		parent.AddRtAttr(nl.TCA_FLOWER_KEY_PORT_SRC_MAX, htons(filter.SrcPortRangeMax))
-	}
-
-	if filter.DstPortRangeMin != 0 && filter.DstPortRangeMax != 0 {
-		parent.AddRtAttr(nl.TCA_FLOWER_KEY_PORT_DST_MIN, htons(filter.DstPortRangeMin))
-		parent.AddRtAttr(nl.TCA_FLOWER_KEY_PORT_DST_MAX, htons(filter.DstPortRangeMax))
-	}
-
-	if filter.ClassId != 0 {
-		parent.AddRtAttr(nl.TCA_FLOWER_CLASSID, nl.Uint32Attr(filter.ClassId))
-	}
 
 	var flags uint32 = 0
 	if filter.SkipHw {
@@ -265,16 +247,6 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			if skipHw != 0 {
 				filter.SkipHw = true
 			}
-		case nl.TCA_FLOWER_KEY_PORT_SRC_MIN:
-			filter.SrcPortRangeMin = ntohs(datum.Value)
-		case nl.TCA_FLOWER_KEY_PORT_SRC_MAX:
-			filter.SrcPortRangeMax = ntohs(datum.Value)
-		case nl.TCA_FLOWER_KEY_PORT_DST_MIN:
-			filter.DstPortRangeMin = ntohs(datum.Value)
-		case nl.TCA_FLOWER_KEY_PORT_DST_MAX:
-			filter.DstPortRangeMax = ntohs(datum.Value)
-		case nl.TCA_FLOWER_CLASSID:
-			filter.ClassId = native.Uint32(datum.Value)
 		}
 	}
 	return nil
@@ -768,17 +740,6 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_PARMS, gen.Serialize())
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_FD, nl.Uint32Attr(uint32(action.Fd)))
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_NAME, nl.ZeroTerminated(action.Name))
-		case *SampleAction:
-			table := attr.AddRtAttr(tabIndex, nil)
-			tabIndex++
-			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("sample"))
-			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
-			gen := nl.TcGen{}
-			toTcGen(action.Attrs(), &gen)
-			aopts.AddRtAttr(nl.TCA_ACT_SAMPLE_PARMS, gen.Serialize())
-			aopts.AddRtAttr(nl.TCA_ACT_SAMPLE_RATE, nl.Uint32Attr(action.Rate))
-			aopts.AddRtAttr(nl.TCA_ACT_SAMPLE_PSAMPLE_GROUP, nl.Uint32Attr(action.Group))
-			aopts.AddRtAttr(nl.TCA_ACT_SAMPLE_TRUNC_SIZE, nl.Uint32Attr(action.TruncSize))
 		case *GenericAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
@@ -791,7 +752,6 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
 			pedit := nl.TcPedit{}
-			toTcGen(action.Attrs(), &pedit.Sel.TcGen)
 			if action.SrcMacAddr != nil {
 				pedit.SetEthSrc(action.SrcMacAddr)
 			}
@@ -865,8 +825,6 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &ConnmarkAction{}
 				case "csum":
 					action = &CsumAction{}
-				case "sample":
-					action = &SampleAction{}
 				case "gact":
 					action = &GenericAction{}
 				case "vlan":
@@ -990,18 +948,6 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_CSUM_TM:
 							tcTs := nl.DeserializeTcf(adatum.Value)
 							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "sample":
-						switch adatum.Attr.Type {
-						case nl.TCA_ACT_SAMPLE_PARMS:
-							gen := *nl.DeserializeTcGen(adatum.Value)
-							toAttrs(&gen, action.Attrs())
-						case nl.TCA_ACT_SAMPLE_RATE:
-							action.(*SampleAction).Rate = native.Uint32(adatum.Value[0:4])
-						case nl.TCA_ACT_SAMPLE_PSAMPLE_GROUP:
-							action.(*SampleAction).Group = native.Uint32(adatum.Value[0:4])
-						case nl.TCA_ACT_SAMPLE_TRUNC_SIZE:
-							action.(*SampleAction).TruncSize = native.Uint32(adatum.Value[0:4])
 						}
 					case "gact":
 						switch adatum.Attr.Type {
