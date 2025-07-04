@@ -37,9 +37,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/ttrpc"
 	"github.com/docker/go-metrics"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -150,25 +148,11 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 		diff.RegisterProcessor(diff.BinaryHandler(id, p.Returns, p.Accepts, p.Path, p.Args, p.Env))
 	}
 
-	var prometheusServerMetricsOpts []grpc_prometheus.ServerMetricsOption
-	if config.Metrics.GRPCHistogram {
-		// Enable grpc time histograms to measure rpc latencies
-		prometheusServerMetricsOpts = append(prometheusServerMetricsOpts, grpc_prometheus.WithServerHandlingTimeHistogram())
-	}
-
-	prometheusServerMetrics := grpc_prometheus.NewServerMetrics(prometheusServerMetricsOpts...)
-	prometheus.MustRegister(prometheusServerMetrics)
 
 	serverOpts := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainStreamInterceptor(
-			streamNamespaceInterceptor,
-			prometheusServerMetrics.StreamServerInterceptor(),
-		),
-		grpc.ChainUnaryInterceptor(
-			unaryNamespaceInterceptor,
-			prometheusServerMetrics.UnaryServerInterceptor(),
-		),
+		grpc.ChainStreamInterceptor(streamNamespaceInterceptor),
+		grpc.ChainUnaryInterceptor(unaryNamespaceInterceptor),
 	}
 	if config.GRPC.MaxRecvMsgSize > 0 {
 		serverOpts = append(serverOpts, grpc.MaxRecvMsgSize(config.GRPC.MaxRecvMsgSize))
@@ -228,7 +212,6 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 		ttrpcServices []ttrpcService
 
 		s = &Server{
-			prometheusServerMetrics: prometheusServerMetrics,
 			grpcServer:              grpcServer,
 			tcpServer:               tcpServer,
 			ttrpcServer:             ttrpcServer,
@@ -379,7 +362,6 @@ func recordConfigDeprecations(ctx context.Context, config *srvconfig.Config, set
 
 // Server is the containerd main daemon
 type Server struct {
-	prometheusServerMetrics *grpc_prometheus.ServerMetrics
 	grpcServer              *grpc.Server
 	ttrpcServer             *ttrpc.Server
 	tcpServer               *grpc.Server
@@ -390,7 +372,6 @@ type Server struct {
 
 // ServeGRPC provides the containerd grpc APIs on the provided listener
 func (s *Server) ServeGRPC(l net.Listener) error {
-	s.prometheusServerMetrics.InitializeMetrics(s.grpcServer)
 	return trapClosedConnErr(s.grpcServer.Serve(l))
 }
 
@@ -412,7 +393,6 @@ func (s *Server) ServeMetrics(l net.Listener) error {
 
 // ServeTCP allows services to serve over tcp
 func (s *Server) ServeTCP(l net.Listener) error {
-	s.prometheusServerMetrics.InitializeMetrics(s.tcpServer)
 	return trapClosedConnErr(s.tcpServer.Serve(l))
 }
 
